@@ -14,12 +14,33 @@ dependencies = [
 ]
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "B"]
+select = [
+    "E4",   # pycodestyle errors - Import errors and indentation issues
+    "E7",   # pycodestyle errors - Statement issues (multiple statements on one line, etc.)
+    "E9",   # pycodestyle errors - Runtime errors (syntax errors, I/O errors)
+    "F",    # Pyflakes - General Python code quality (unused imports, undefined names, etc.)
+    "B",    # flake8-bugbear - Common bugs and design problems
+    "S",    # flake8-bandit - Security issues and vulnerabilities
+    "PERF", # Perflint - Performance anti-patterns
+    "T20",  # flake8-print - Detect print statements
+    "LOG",  # flake8-logging - Logging best practices
+    "ASYNC", # flake8-async - Async/await best practices and common mistakes
+    "C90",   # mccabe - Complexity checks
+]
 
 unfixable = ["B"]
 
-# Ignore `E402` (import violations) in all `__init__.py` files, and in selected subdirectories.
+ignore = [
+    "PERF401", # manual-list-comprehension
+    "PERF403", # manual-dict-comprehension
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
 [tool.ruff.lint.per-file-ignores]
+"test_*.py" = ["B011", "S101", "T20", "S108"]
+"**/{docs,scripts,tests,tools}/*.py" = ["T20"]
 "__init__.py" = ["E402"]
 "**/{tests,docs,tools}/*" = ["E402"]
 

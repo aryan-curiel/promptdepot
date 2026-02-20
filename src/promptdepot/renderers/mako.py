@@ -12,7 +12,7 @@ class MakoPromptRendererConfig(TypedDict):
 class MakoPromptRenderer(PromptRenderer[str, MakoPromptRendererConfig]):
     def __init__(self, template: str, *, config: MakoPromptRendererConfig):
         super().__init__(template=template, config=config)
-        self.compiled_template = Template(template, lookup=config.get("lookup"))
+        self.compiled_template = Template(template, lookup=config.get("lookup"))  # noqa: S702
 
     def render(self, *, context: dict) -> str:
         return self.compiled_template.render(**context)
