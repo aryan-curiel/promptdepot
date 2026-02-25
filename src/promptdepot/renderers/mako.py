@@ -1,4 +1,5 @@
-from typing import TypedDict
+from collections.abc import Mapping
+from typing import TypedDict, Any
 
 from mako.lookup import TemplateLookup
 from mako.template import Template
@@ -15,5 +16,5 @@ class MakoPromptRenderer(PromptRenderer[str, MakoPromptRendererConfig]):
         super().__init__(template=template, config=config)
         self.compiled_template = Template(template, lookup=config.get("lookup"))  # noqa: S702
 
-    def render(self, *, context: dict) -> str:
+    def render(self, *, context: Mapping[str, Any]) -> str:
         return self.compiled_template.render(**context)

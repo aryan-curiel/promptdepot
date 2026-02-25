@@ -3,9 +3,11 @@
 Prompt Depot is a Python library for storing, versioning, loading, and rendering prompt templates for LLM workflows.
 
 It provides:
-- A versioned local filesystem store (`LocalTemplateStore`) for prompt templates + metadata
+
+- A versioned local filesystem store (`LocalTemplateStore`) for prompt templates and metadata
 - A renderer abstraction (`PromptRenderer`) for pluggable template engines
 - Built-in renderer implementations for Mako and Jinja2
+- A manager abstraction (`PromptDepotManager`) that coordinates store + renderer with version-aware caching
 
 ## Table of Contents
 
@@ -17,9 +19,11 @@ It provides:
 - [Prompt Metadata Schema](#prompt-metadata-schema)
 - [Using LocalTemplateStore](#using-localtemplatestore)
 - [Using Renderers](#using-renderers)
+- [Using PromptDepotManager](#using-promptdepotmanager)
 - [Error Handling](#error-handling)
 - [Testing](#testing)
 - [Coverage](#coverage)
+- [CI/CD](#cicd)
 - [Development Notes](#development-notes)
 
 ## Features
@@ -29,6 +33,7 @@ It provides:
 - List templates and list versions per template
 - Create new templates and versions (empty or cloned from latest)
 - Renderer abstraction to support multiple template engines
+- Manager API to fetch + render prompts through one call
 - Optional dependencies for renderer engines (`mako`, `jinja2`)
 
 ## Requirements
@@ -90,18 +95,22 @@ uv add promptdepot
 
 ```text
 src/promptdepot/
-	renderers/
-		core.py
-		mako.py
-		jinja2.py
-	stores/
-		core.py
-		local.py
+  manager.py
+  renderers/
+    core.py
+    mako.py
+    jinja2.py
+  stores/
+    core.py
+    local.py
+.github/workflows/
+  ci.yml
 tests/
-	test_renderers_core.py
-	test_renderers_mako.py
-	test_renderers_jinja2.py
-	test_stores_local.py
+  test_manager.py
+  test_renderers_core.py
+  test_renderers_mako.py
+  test_renderers_jinja2.py
+  test_stores_local.py
 ```
 
 ## Core Concepts
@@ -109,6 +118,7 @@ tests/
 ### 1) `TemplateStore`
 
 Abstract contract for template persistence:
+
 - `get_template(template_id, version)`
 - `list_templates()`
 - `list_template_versions(template_id)`
@@ -120,16 +130,32 @@ Abstract contract for template persistence:
 ### 2) `PromptRenderer`
 
 Abstract base renderer with:
+
 - `template`
 - `config`
 - `from_template(...)` constructor helper
-- required `render(context=...) -> str`
+- Required `render(context: Mapping[str, Any]) -> str`
 
 ### 3) `CreationStrategy`
 
 Version creation behavior:
+
 - `CreationStrategy.EMPTY`: create empty template file content
 - `CreationStrategy.FROM_PREVIOUS_VERSION`: copy content from latest existing version
+
+### 4) `PromptDepotManager`
+
+`PromptDepotManager` composes a `TemplateStore` and a `PromptRenderer` class into a single API:
+
+- `get_prompt(template_id, version, context) -> str`
+
+Behavior:
+
+- Fetches template data from the store on first use of a `(template_id, version)` pair
+- Instantiates renderer with `from_template(...)`
+- Caches renderers by `(template_id, version)`
+- Accepts `context` as `Mapping[str, Any]`
+- Defensively copies `default_config` so renderer-side mutations do not leak
 
 ## Prompt Metadata Schema
 
@@ -151,11 +177,11 @@ Version creation behavior:
 
 ```text
 <base_path>/
-	<template_id>/
-		<version>/
-			metadata.yml
-			template.mako
-			README.md
+  <template_id>/
+    <version>/
+      metadata.yml
+      template.mako
+      README.md
 ```
 
 Example:
@@ -172,7 +198,7 @@ readme_file: README.md
 tags: [example, prod]
 model: gpt-4
 changelog:
-	- Initial release
+  - Initial release
 ```
 
 ## Using `LocalTemplateStore`
@@ -199,7 +225,7 @@ print(template.template_path.read_text())
 ```python
 templates = store.list_templates()
 for template_id, prompt_template in templates:
-		print(template_id, prompt_template.metadata.version)
+    print(template_id, prompt_template.metadata.version)
 ```
 
 ### List all versions for one template
@@ -207,7 +233,7 @@ for template_id, prompt_template in templates:
 ```python
 versions = store.list_template_versions("support_agent")
 for version, prompt_template in versions:
-		print(version, prompt_template.template_path)
+    print(version, prompt_template.template_path)
 ```
 
 ### Create a new template version
@@ -217,35 +243,35 @@ from datetime import datetime
 from pathlib import Path
 
 from promptdepot.stores.local import (
-		CreationStrategy,
-		PromptMetadata,
-		PromptTemplate,
+    CreationStrategy,
+    PromptMetadata,
+    PromptTemplate,
 )
 
 metadata = PromptMetadata(
-		schema_version="1.0.0",
-		version="1.1.0",
-		created_at=datetime.utcnow(),
-		name="Support Agent Prompt",
-		description="Prompt used by support triage workflow",
-		author="Team AI",
-		template_file="template.mako",
-		readme_file="README.md",
-		tags={"support", "triage"},
-		model="gpt-4",
-		changelog=["Added escalation instructions"],
+    schema_version="1.0.0",
+    version="1.1.0",
+    created_at=datetime.utcnow(),
+    name="Support Agent Prompt",
+    description="Prompt used by support triage workflow",
+    author="Team AI",
+    template_file="template.mako",
+    readme_file="README.md",
+    tags={"support", "triage"},
+    model="gpt-4",
+    changelog=["Added escalation instructions"],
 )
 
 prompt_template = PromptTemplate(
-		metadata=metadata,
-		template_path=Path("/tmp/ignored-by-store.mako"),
+    metadata=metadata,
+    template_path=Path("/tmp/ignored-by-store.mako"),
 )
 
 store.create_version(
-		template_id="support_agent",
-		version="1.1.0",
-		template=prompt_template,
-		strategy=CreationStrategy.FROM_PREVIOUS_VERSION,
+    template_id="support_agent",
+    version="1.1.0",
+    template=prompt_template,
+    strategy=CreationStrategy.FROM_PREVIOUS_VERSION,
 )
 ```
 
@@ -255,8 +281,8 @@ Note: `create_version(...)` writes metadata and template file into the target di
 
 ```python
 store.create_template(
-		template_id="support_agent",
-		template=prompt_template,
+    template_id="support_agent",
+    template=prompt_template,
 )
 ```
 
@@ -264,14 +290,14 @@ This uses `CreationStrategy.EMPTY` and creates an empty template file.
 
 ## Using Renderers
 
-## Mako renderer
+### Mako renderer
 
 ```python
 from promptdepot.renderers.mako import MakoPromptRenderer
 
 renderer = MakoPromptRenderer(
-		template="Hello ${name}!",
-		config={"lookup": None},
+    template="Hello ${name}!",
+    config={"lookup": None},
 )
 
 result = renderer.render(context={"name": "World"})
@@ -284,15 +310,13 @@ print(result)  # Hello World!
 from promptdepot.renderers.jinja2 import Jinja2PromptRenderer
 
 renderer = Jinja2PromptRenderer(
-		template="Hello {{ name }}!",
-		config={"environment": None},
+    template="Hello {{ name }}!",
+    config={"environment": None},
 )
 
 result = renderer.render(context={"name": "World"})
 print(result)  # Hello World!
 ```
-
-Implementation note: the current Jinja2 renderer reads `config.get("env")` and falls back to `Environment(autoescape=True)`. If you pass only `environment`, it currently falls back to the default environment.
 
 ### Generic renderer construction pattern
 
@@ -301,14 +325,42 @@ renderer = SomeRenderer.from_template(template="...", config={...})
 output = renderer.render(context={"key": "value"})
 ```
 
+## Using `PromptDepotManager`
+
+```python
+from pathlib import Path
+
+from promptdepot.manager import PromptDepotManager
+from promptdepot.renderers.jinja2 import Jinja2PromptRenderer
+from promptdepot.stores.local import LocalTemplateStore
+
+store = LocalTemplateStore(base_path=Path("prompts"))
+
+manager = PromptDepotManager(
+    store=store,
+    renderer=Jinja2PromptRenderer,
+    default_config={"environment": None},
+)
+
+output = manager.get_prompt(
+    template_id="support_agent",
+    version="1.0.0",
+    context={"user_name": "Aryan", "priority": "high"},
+)
+
+print(output)
+```
+
 ## Error Handling
 
 `LocalTemplateStore` may raise:
+
 - `TemplateNotFoundError`: template id/version/metadata/template file not found
 - `VersionAlreadyExistsError`: creating a version that already exists
 - `ValidationError` (indirectly during metadata validation paths)
 
 Mako/Jinja2 constructors can raise syntax errors on invalid templates:
+
 - Mako: `mako.exceptions.SyntaxException`
 - Jinja2: `jinja2.TemplateSyntaxError`
 
@@ -320,10 +372,11 @@ Run all tests:
 uv run pytest tests
 ```
 
-Run a specific test file:
+Run specific files:
 
 ```bash
 uv run pytest tests/test_stores_local.py
+uv run pytest tests/test_manager.py
 ```
 
 ## Coverage
@@ -340,9 +393,27 @@ Open HTML report (macOS):
 open htmlcov/index.html
 ```
 
+## CI/CD
+
+The repository includes a GitHub Actions workflow at `.github/workflows/ci.yml`.
+
+On `push` (all branches) and `pull_request` (targeting `main`), it runs:
+
+- Ruff lint: `ruff check .`
+- Ruff format check: `ruff format --check .`
+- Type checks: `ty check src`
+- Test matrix on Python `3.10`, `3.11`, `3.12`, and `3.13`
+
+On `release: published` (targeting `main`), after CI passes, it:
+
+- Builds distributions with `uv build`
+- Publishes to PyPI via Trusted Publishing (OIDC)
+
+For PyPI publication, configure Trusted Publishing in your PyPI project settings for this repository/workflow.
+
 ## Development Notes
 
 - Linting is configured with Ruff in `pyproject.toml`
-- The project uses strict static and runtime validation patterns
+- The project uses static typing + runtime validation patterns
 - Fixtures in `tests/test_prompts/` illustrate accepted and invalid store structures
 - Optional renderer packages are intentionally separated from core dependencies
