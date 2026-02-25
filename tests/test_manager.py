@@ -1,6 +1,7 @@
 from collections.abc import Mapping
 from typing import Any
 
+import pytest
 from promptdepot.manager import PromptDepotManager
 from promptdepot.renderers.core import PromptRenderer
 from promptdepot.stores.core import TemplateStore, PromptVersion
@@ -52,6 +53,11 @@ class RecordingRenderer(PromptRenderer[str, dict[str, Any]]):
         return f"{self.template}|{context['name']}"
 
 
+@pytest.fixture(autouse=True)
+def reset_recording_renderer_configs() -> None:
+    RecordingRenderer.created_configs = []
+
+
 def test_prompt_depot_manager_get_prompt__should_cache_renderer_by_template_and_version():
     store = StubStore()
     manager = PromptDepotManager(
@@ -75,7 +81,6 @@ def test_prompt_depot_manager_get_prompt__should_cache_renderer_by_template_and_
 
 
 def test_prompt_depot_manager_get_prompt__should_copy_default_config_per_renderer_creation():
-    RecordingRenderer.created_configs = []
     store = StubStore()
     external_default_config = {"flag": "x"}
     manager = PromptDepotManager(
