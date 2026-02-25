@@ -36,6 +36,9 @@ class StubStore(TemplateStore[str, str]):
     def create_template(self, template_id: str, template: str) -> None:
         return None
 
+    def get_template_content(self, template_id: str, version: PromptVersion) -> str:
+        return self.get_template(template_id, version)
+
 
 class RecordingRenderer(PromptRenderer[str, dict[str, Any]]):
     created_configs: list[dict[str, Any]] = []
