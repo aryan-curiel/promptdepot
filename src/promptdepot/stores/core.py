@@ -1,9 +1,12 @@
 from abc import ABC, abstractmethod
 from enum import Enum
+from typing import Generic, TypeAlias, TypeVar
 
 from pydantic_extra_types.semantic_version import SemanticVersion
 
-type PromptVersion = SemanticVersion | str
+PromptVersion: TypeAlias = SemanticVersion | str
+TID = TypeVar("TID")
+TTemplate = TypeVar("TTemplate")
 
 
 class CreationStrategy(Enum):
@@ -11,7 +14,7 @@ class CreationStrategy(Enum):
     EMPTY = "empty"
 
 
-class TemplateStore[TID, TTemplate](ABC):
+class TemplateStore(Generic[TID, TTemplate], ABC):
     @abstractmethod
     def get_template(self, template_id: TID, version: PromptVersion) -> TTemplate: ...
 

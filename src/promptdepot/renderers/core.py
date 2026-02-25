@@ -1,14 +1,24 @@
 from abc import ABC, abstractmethod
-from typing import Self
+from typing import Generic, TypeVar
+from typing_extensions import Self
 
 
-class PromptRenderer[Template, ConfigDict](ABC):
-    def __init__(self, template: Template, *, config: ConfigDict):
+TemplateT = TypeVar("TemplateT")
+ConfigDictT = TypeVar("ConfigDictT")
+
+
+class PromptRenderer(Generic[TemplateT, ConfigDictT], ABC):
+    def __init__(self, template: TemplateT, *, config: ConfigDictT):
         self.template = template
         self.config = config
 
     @classmethod
-    def from_template(cls, template: Template, *, config: ConfigDict) -> Self:
+    def from_template(
+        cls,
+        template: TemplateT,
+        *,
+        config: ConfigDictT,
+    ) -> Self:
         return cls(template=template, config=config)
 
     @abstractmethod
