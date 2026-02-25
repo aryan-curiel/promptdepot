@@ -6,11 +6,15 @@ readme = "README.md"
 authors = [{ name = "Aryan Curiel", email = "aryan.curiel@gmail.com" }]
 requires-python = ">=3.13"
 dependencies = [
-    "mako>=1.3.10",
     "pydantic>=2.12.5",
     "pydantic-extra-types>=2.11.0",
     "pyyaml>=6.0.3",
     "semver>=3.0.4",
+]
+
+[project.optional-dependencies]
+mako = [
+    "mako>=1.3.10",
 ]
 
 [tool.ruff.lint]
@@ -26,6 +30,7 @@ select = [
     "LOG",  # flake8-logging - Logging best practices
     "ASYNC", # flake8-async - Async/await best practices and common mistakes
     "C90",   # mccabe - Complexity checks
+    "UP",
 ]
 
 unfixable = ["B"]

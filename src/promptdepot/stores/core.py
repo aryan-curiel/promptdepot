@@ -11,30 +11,30 @@ class CreationStrategy(Enum):
     EMPTY = "empty"
 
 
-class TemplateStore[_TID, _TTemplate](ABC):
+class TemplateStore[TID, TTemplate](ABC):
     @abstractmethod
-    def get_template(self, template_id: _TID, version: PromptVersion) -> _TTemplate: ...
+    def get_template(self, template_id: TID, version: PromptVersion) -> TTemplate: ...
 
     @abstractmethod
-    def list_templates(self) -> list[tuple[_TID, _TTemplate]]: ...
+    def list_templates(self) -> list[tuple[TID, TTemplate]]: ...
 
     @abstractmethod
     def list_template_versions(
-        self, template_id: _TID
-    ) -> list[tuple[PromptVersion, _TTemplate]]: ...
+        self, template_id: TID
+    ) -> list[tuple[PromptVersion, TTemplate]]: ...
 
     @abstractmethod
     def create_version(
         self,
-        template_id: _TID,
+        template_id: TID,
         version: PromptVersion,
-        template: _TTemplate,
+        template: TTemplate,
         strategy: CreationStrategy = CreationStrategy.FROM_PREVIOUS_VERSION,
     ) -> None: ...
 
     @abstractmethod
     def create_template(
         self,
-        template_id: _TID,
-        template: _TTemplate,
+        template_id: TID,
+        template: TTemplate,
     ) -> None: ...
