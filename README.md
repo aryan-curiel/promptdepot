@@ -155,7 +155,7 @@ Behavior:
 - Instantiates renderer with `from_template(...)`
 - Caches renderers by `(template_id, version)`
 - Accepts `context` as `Mapping[str, Any]`
-- Defensively copies `default_config` so renderer-side mutations do not leak
+- Performs a shallow copy of `default_config` so renderer-side mutations to top-level keys do not leak (nested mutable values are shared)
 
 ## Prompt Metadata Schema
 
