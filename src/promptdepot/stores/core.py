@@ -41,3 +41,6 @@ class TemplateStore(Generic[TID, TTemplate], ABC):
         template_id: TID,
         template: TTemplate,
     ) -> None: ...
+
+    @abstractmethod
+    def get_template_content(self, template_id: TID, version: PromptVersion) -> str: ...

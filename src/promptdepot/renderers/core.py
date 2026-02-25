@@ -1,5 +1,6 @@
+from collections.abc import Mapping
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, Any
 from typing_extensions import Self
 
 
@@ -22,4 +23,4 @@ class PromptRenderer(Generic[TemplateT, ConfigDictT], ABC):
         return cls(template=template, config=config)
 
     @abstractmethod
-    def render(self, *, context: dict) -> str: ...
+    def render(self, *, context: Mapping[str, Any]) -> str: ...
