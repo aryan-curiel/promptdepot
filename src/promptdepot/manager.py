@@ -44,4 +44,4 @@ class PromptDepotManager(Generic[TID, TemplateT, ConfigDictT]):
             )
             self.renderer_cache[versioned_template_id] = renderer
 
-        return renderer.render(context=dict(context))
+        return renderer.render(context=context)
