@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
+from typing_extensions import Self
 
 
 TemplateT = TypeVar("TemplateT")
 ConfigDictT = TypeVar("ConfigDictT")
-PromptRendererT = TypeVar("PromptRendererT", bound="PromptRenderer")
 
 
 class PromptRenderer(Generic[TemplateT, ConfigDictT], ABC):
@@ -14,11 +14,11 @@ class PromptRenderer(Generic[TemplateT, ConfigDictT], ABC):
 
     @classmethod
     def from_template(
-        cls: type[PromptRendererT],
+        cls,
         template: TemplateT,
         *,
         config: ConfigDictT,
-    ) -> PromptRendererT:
+    ) -> Self:
         return cls(template=template, config=config)
 
     @abstractmethod
