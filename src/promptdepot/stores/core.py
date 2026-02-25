@@ -21,7 +21,7 @@ class TemplateStore[TID, TTemplate](ABC):
     @abstractmethod
     def list_template_versions(
         self, template_id: TID
-    ) -> list[tuple[PromptVersion, TTemplate]]: ...
+    ) -> list[tuple[SemanticVersion, TTemplate]]: ...
 
     @abstractmethod
     def create_version(

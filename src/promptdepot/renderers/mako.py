@@ -1,4 +1,5 @@
 from typing import TypedDict
+
 from mako.lookup import TemplateLookup
 from mako.template import Template
 
