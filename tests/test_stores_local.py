@@ -646,6 +646,18 @@ def test_local_template_store_get_template_version_content__should_return_conten
     assert content == "Hello from template!"
 
 
+def test_local_template_store_get_template_version_content__should_raise_when_template_file_missing(
+    temp_local_store: LocalTemplateStore,
+):
+    """get_template_version_content raises TemplateNotFoundError when the template file does not exist."""
+    version_dir = temp_local_store.base_path / "testing_prompt" / "1.0.0"
+    version_dir.mkdir(parents=True)
+    # No template.md file created
+
+    with pytest.raises(TemplateNotFoundError, match="Template file not found"):
+        temp_local_store.get_template_version_content("testing_prompt", "1.0.0")
+
+
 def test_local_template_store_get_template_path__should_return_correct_path(
     local_store: LocalTemplateStore,
 ):

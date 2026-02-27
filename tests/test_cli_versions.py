@@ -343,3 +343,29 @@ def test_versions_show__should_display_version_details(
     assert "gpt-4" in result.output
     assert "initial release" in result.output
     assert "Hello ${name}!" in result.output
+
+
+# --- versions create: mutually exclusive flags ---
+
+
+def test_versions_create__should_raise_when_multiple_strategy_flags_provided(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    mock_store = MagicMock()
+    monkeypatch.setattr(versions_module, "get_store", lambda: mock_store)
+
+    result = runner.invoke(
+        app,
+        [
+            "versions",
+            "create",
+            "my-prompt",
+            "--version",
+            "2.0.0",
+            "--from-previous",
+            "--empty",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "mutually exclusive" in result.output
