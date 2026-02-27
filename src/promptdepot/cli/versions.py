@@ -17,7 +17,7 @@ def versions_create(
         None,
         "--version",
         "-v",
-        help="The version identifier. If not provided, uses the next patch version.",
+        help="The version identifier. If not provided, you will be prompted to enter a version.",
     ),
     from_previous: bool = typer.Option(
         False,
