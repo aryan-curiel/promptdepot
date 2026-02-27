@@ -20,7 +20,7 @@ class PyprojectTomlSource(TomlConfigSettingsSource):
     """Reads settings from the ``[tool.promptdepot]`` table in pyproject.toml."""
 
     def _read_file(self, file_path: Path) -> dict[str, Any]:
-        if sys.version_info < (3, 11):
+        if sys.version_info < (3, 11):  # pragma: no cover
             import tomli as toml_lib  # noqa: S403  # ty:ignore[unresolved-import]
         else:
             import tomllib as toml_lib  # type: ignore[no-redef]

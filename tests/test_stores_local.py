@@ -660,3 +660,31 @@ def test_local_template_store_get_metadata_path__should_return_correct_path(
     path = local_store._get_metadata_path("testing_prompt", "1.0.0")
     expected = local_store.base_path / "testing_prompt" / "1.0.0" / "metadata.yml"
     assert path == expected
+
+
+def test_local_template_store_list_template_versions__should_skip_version_dir_without_metadata(
+    temp_local_store: LocalTemplateStore,
+):
+    """A version directory that exists but has no metadata.yml should be silently skipped."""
+    template_dir = temp_local_store.base_path / "testing_prompt"
+    template_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create a valid version directory
+    valid_version_dir = template_dir / "1.0.0"
+    valid_version_dir.mkdir()
+    (valid_version_dir / "metadata.yml").write_text(
+        "template_id: testing_prompt\n"
+        "version: 1.0.0\n"
+        "created_at: '2025-01-01T00:00:00'\n"
+        "description: valid\n"
+        "changelog:\n  - init\n"
+    )
+    (valid_version_dir / "template.md").write_text("Hello")
+
+    # Create an invalid version directory (no metadata.yml)
+    invalid_version_dir = template_dir / "2.0.0"
+    invalid_version_dir.mkdir()
+
+    versions = temp_local_store.list_template_versions("testing_prompt")
+    assert len(versions) == 1
+    assert str(versions[0].version) == "1.0.0"

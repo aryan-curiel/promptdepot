@@ -1,7 +1,9 @@
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+import promptdepot.cli as cli_module
 import promptdepot.cli.utils as utils_module
 from promptdepot.cli.settings import Settings, StoreSettings
 from promptdepot.cli.utils import get_store
@@ -73,3 +75,10 @@ def test_get_store__should_raise_when_store_class_not_found(
 
     with pytest.raises(AttributeError):
         get_store()
+
+
+def test_cli_main__should_call_app():
+    mock_app = MagicMock()
+    with patch.object(cli_module, "app", mock_app):
+        cli_module.main()
+        mock_app.assert_called_once()
