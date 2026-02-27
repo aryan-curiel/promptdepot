@@ -209,5 +209,7 @@ class LocalTemplateStore(TemplateStore):
             strategy=CreationStrategy.EMPTY,
         )
 
-    def get_template_content(self, template_id: str, version: PromptVersion) -> str:
+    def get_template_version_content(
+        self, template_id: str, version: PromptVersion
+    ) -> str:
         return self._get_template_path(template_id, version).read_text()
