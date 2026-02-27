@@ -49,15 +49,23 @@ def versions_create(
         version = typer.prompt(
             f"Version not provided. Please enter a version identifier. Current version is {latest_version}."
         )
-    strategy = (
-        CreationStrategy.FROM_PREVIOUS_VERSION
-        if from_previous
-        else CreationStrategy.EMPTY
-        if empty
-        else CreationStrategy.WITH_CONTENT
-        if with_content
-        else CreationStrategy.FROM_PREVIOUS_VERSION
-    )
+
+    # Ensure mutually exclusive creation strategy flags
+    selected_flags = [from_previous, empty, with_content]
+    if sum(1 for flag in selected_flags if flag) > 1:
+        raise typer.BadParameter(
+            "Options --from-previous, --empty, and --with-content are mutually exclusive. "
+            "Please specify at most one."
+        )
+
+    if from_previous:
+        strategy = CreationStrategy.FROM_PREVIOUS_VERSION
+    elif empty:
+        strategy = CreationStrategy.EMPTY
+    elif with_content:
+        strategy = CreationStrategy.WITH_CONTENT
+    else:
+        strategy = CreationStrategy.FROM_PREVIOUS_VERSION
     if strategy != CreationStrategy.WITH_CONTENT and content:
         console.print(
             "[yellow]Warning: Content provided will be ignored because of the creation strategy.[/yellow]"
