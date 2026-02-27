@@ -4,7 +4,7 @@ from rich.table import Table
 
 from promptdepot.stores.core import TemplateStore
 
-from .utils import get_store
+from promptdepot.cli.utils import get_store
 
 templates_app = typer.Typer(help="Manage prompt templates.")
 console = Console()
