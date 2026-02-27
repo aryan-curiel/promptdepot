@@ -212,4 +212,11 @@ class LocalTemplateStore(TemplateStore):
     def get_template_version_content(
         self, template_id: str, version: PromptVersion
     ) -> str:
-        return self._get_template_path(template_id, version).read_text()
+        template_path = self._get_template_path(template_id, version)
+        try:
+            return template_path.read_text()
+        except FileNotFoundError as e:
+            raise TemplateNotFoundError(
+                f"Template file not found for template '{template_id}', "
+                f"version '{version}', at path '{template_path}'"
+            ) from e
