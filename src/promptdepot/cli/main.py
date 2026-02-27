@@ -1,6 +1,6 @@
 import typer
-from .templates import templates_app
-from .versions import versions_app
+from promptdepot.cli.templates import templates_app
+from promptdepot.cli.versions import versions_app
 
 app = typer.Typer()
 
