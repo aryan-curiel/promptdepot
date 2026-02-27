@@ -1,18 +1,16 @@
-from collections.abc import Hashable, Mapping
+from collections.abc import Mapping
 from typing import Any, Generic, TypeVar, cast
 
 from promptdepot.renderers import PromptRenderer
 from promptdepot.stores import PromptVersion, TemplateStore
 
-TID = TypeVar("TID", bound=Hashable)
-TemplateT = TypeVar("TemplateT")
-ConfigDictT = TypeVar("ConfigDictT", bound=dict)
+ConfigDictT = TypeVar("ConfigDictT", bound=Mapping[str, Any])
 
 
-class PromptDepotManager(Generic[TID, TemplateT, ConfigDictT]):
+class PromptDepotManager(Generic[ConfigDictT]):
     def __init__(
         self,
-        store: TemplateStore[TID, TemplateT],
+        store: TemplateStore,
         renderer: type[PromptRenderer[str, ConfigDictT]],
         *,
         default_config: ConfigDictT | None = None,
@@ -20,7 +18,7 @@ class PromptDepotManager(Generic[TID, TemplateT, ConfigDictT]):
         self.store = store
         self.renderer_cls = renderer
         self.renderer_cache: dict[
-            tuple[TID, str], PromptRenderer[str, ConfigDictT]
+            tuple[str, str], PromptRenderer[str, ConfigDictT]
         ] = {}
         self.default_config: ConfigDictT = (
             cast(ConfigDictT, dict(default_config))
@@ -30,14 +28,16 @@ class PromptDepotManager(Generic[TID, TemplateT, ConfigDictT]):
 
     def get_prompt(
         self,
-        template_id: TID,
+        template_id: str,
         version: PromptVersion,
         context: Mapping[str, Any],
     ) -> str:
         versioned_template_id = (template_id, str(version))
         renderer = self.renderer_cache.get(versioned_template_id)
         if renderer is None:
-            template_content = self.store.get_template_content(template_id, version)
+            template_content = self.store.get_template_version_content(
+                template_id, version
+            )
             renderer = self.renderer_cls.from_template(
                 template_content,
                 config=cast(ConfigDictT, dict(self.default_config)),
