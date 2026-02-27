@@ -4,41 +4,60 @@ from typing import Any
 import pytest
 from promptdepot.manager import PromptDepotManager
 from promptdepot.renderers.core import PromptRenderer
-from promptdepot.stores.core import TemplateStore, PromptVersion
-from pydantic_extra_types.semantic_version import SemanticVersion
+from promptdepot.stores.core import (
+    CreationStrategy,
+    PromptVersion,
+    Template,
+    TemplateStore,
+    TemplateVersion,
+    TemplateVersionMetadata,
+)
 
 
-class StubStore(TemplateStore[str, str]):
+class StubStore(TemplateStore):
     def __init__(self) -> None:
-        self.get_template_calls: list[tuple[str, str]] = []
+        super().__init__()
+        self.get_template_version_content_calls: list[tuple[str, str]] = []
 
-    def get_template(self, template_id: str, version: PromptVersion) -> str:
-        version_str = str(version)
-        self.get_template_calls.append((template_id, version_str))
-        return f"{template_id}:{version_str}"
+    def get_template(self, template_id: str) -> Template:
+        return Template(id=template_id, latest_version="1.0.0")
 
-    def list_templates(self) -> list[tuple[str, str]]:
+    def get_template_version(
+        self, template_id: str, version: PromptVersion
+    ) -> TemplateVersion:
+        metadata = TemplateVersionMetadata(
+            template_id=template_id, version=str(version)
+        )
+        return TemplateVersion(
+            template_id=template_id, version=str(version), metadata=metadata
+        )
+
+    def list_templates(self) -> list[Template]:
         return []
 
-    def list_template_versions(
-        self, template_id: str
-    ) -> list[tuple[SemanticVersion, str]]:
+    def list_template_versions(self, template_id: str) -> list[TemplateVersion]:
         return []
 
     def create_version(
         self,
         template_id: str,
         version: PromptVersion,
-        template: str,
-        strategy: Any = None,
+        metadata: TemplateVersionMetadata | None = None,
+        *,
+        strategy: CreationStrategy = CreationStrategy.FROM_PREVIOUS_VERSION,
+        content: str | None = None,
     ) -> None:
         return None
 
-    def create_template(self, template_id: str, template: str) -> None:
+    def create_template(self, template_id: str) -> None:
         return None
 
-    def get_template_content(self, template_id: str, version: PromptVersion) -> str:
-        return self.get_template(template_id, version)
+    def get_template_version_content(
+        self, template_id: str, version: PromptVersion
+    ) -> str:
+        version_str = str(version)
+        self.get_template_version_content_calls.append((template_id, version_str))
+        return f"{template_id}:{version_str}"
 
 
 class RecordingRenderer(PromptRenderer[str, dict[str, Any]]):
@@ -74,7 +93,7 @@ def test_prompt_depot_manager_get_prompt__should_cache_renderer_by_template_and_
     assert second == "welcome:1.0.0|Bob"
     assert third == "welcome:1.1.0|Cara"
 
-    assert store.get_template_calls == [
+    assert store.get_template_version_content_calls == [
         ("welcome", "1.0.0"),
         ("welcome", "1.1.0"),
     ]
