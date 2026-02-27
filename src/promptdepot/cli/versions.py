@@ -115,12 +115,12 @@ def versions_ls(
         changelog = "\n".join(version.metadata.changelog or [])
         table.add_row(
             str(version.version),
-            description,
+            description or "",
             str(created_at),
-            author,
+            author or "",
             tags,
-            model,
-            changelog,
+            model or "",
+            changelog or "",
         )
 
     console.print(table)
