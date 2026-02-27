@@ -4,7 +4,7 @@ from rich.table import Table
 
 from promptdepot.stores.core import CreationStrategy, TemplateStore
 
-from .utils import get_store
+from promptdepot.cli.utils import get_store
 
 versions_app = typer.Typer(help="Manage versions of a prompt template.")
 console = Console()
