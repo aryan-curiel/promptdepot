@@ -1,6 +1,6 @@
 import importlib
 
-from .settings import settings
+from promptdepot.cli.settings import settings
 from promptdepot.stores.core import TemplateStore
 
 
