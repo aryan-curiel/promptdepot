@@ -445,7 +445,9 @@ def test_local_template_store_create_version__should_create_file_with_frontmatte
 
     assert template_file.exists()
     assert template_file.read_text().startswith("---\n")
-    assert temp_local_store.get_template_version_content("testing_prompt", "1.0.0") == ""
+    assert (
+        temp_local_store.get_template_version_content("testing_prompt", "1.0.0") == ""
+    )
 
 
 def test_local_template_store_create_version__should_raise_when_version_already_exists(
@@ -560,7 +562,9 @@ def test_local_template_store_create_template__should_create_file_with_frontmatt
 
     assert template_file.exists()
     assert template_file.read_text().startswith("---\n")
-    assert temp_local_store.get_template_version_content("testing_prompt", "1.0.0") == ""
+    assert (
+        temp_local_store.get_template_version_content("testing_prompt", "1.0.0") == ""
+    )
 
 
 def test_local_template_store_create_version__should_create_with_content_when_strategy_with_content(
