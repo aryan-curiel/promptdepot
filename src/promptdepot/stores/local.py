@@ -38,11 +38,18 @@ def _parse_frontmatter(content: str) -> tuple[dict, str]:
     if not content.startswith("---\n"):
         return {}, content
     rest = content[4:]
-    end_idx = rest.find("\n---")
-    if end_idx == -1:
+    # Look for a closing delimiter on its own line: "\n---\n"
+    end_idx = rest.find("\n---\n")
+    if end_idx != -1:
+        yaml_block = rest[:end_idx]
+        body = rest[end_idx + 5 :]
+    elif rest.endswith("\n---"):
+        # Frontmatter with no body: closing delimiter at end of content
+        yaml_block = rest[: -4]
+        body = ""
+    else:
+        # No valid closing delimiter; treat as if there is no frontmatter
         return {}, content
-    yaml_block = rest[:end_idx]
-    body = rest[end_idx + 4 :]
     if body.startswith("\n"):
         body = body[1:]
     return safe_load(yaml_block) or {}, body
