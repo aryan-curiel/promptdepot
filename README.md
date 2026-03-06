@@ -184,30 +184,19 @@ Behavior:
 
 ## Prompt Metadata Schema
 
-`LocalTemplateStore` expects a `metadata.yml` per version that validates to `TemplateVersionMetadata`:
-
-- `template_id`: string matching the parent directory name
-- `version`: semantic version of this prompt version
-- `created_at`: datetime (defaults to `datetime.now()` when creating)
-- `description`: optional
-- `author`: optional
-- `tags`: set of strings (default empty)
-- `model`: optional model hint
-- `changelog`: list of strings (default empty)
-
-### Expected on-disk layout
+Each version is a single `template.md` file. Metadata is declared in a YAML frontmatter block at the top of the file (the `---` intro section), followed by the template body:
 
 ```text
 <base_path>/
   <template_id>/
     <version>/
-      metadata.yml
       template.md
 ```
 
-Example `metadata.yml`:
+`template.md` format:
 
-```yaml
+```markdown
+---
 template_id: support_agent
 version: 1.0.0
 created_at: 2025-01-15T10:30:00
@@ -217,7 +206,20 @@ tags: [support, prod]
 model: gpt-4
 changelog:
   - Initial release
+---
+Hello ${name}, how can I help you today?
 ```
+
+Frontmatter fields (validated against `TemplateVersionMetadata`):
+
+- `template_id`: string matching the parent directory name
+- `version`: semantic version of this prompt version
+- `created_at`: datetime (defaults to `datetime.now()` when creating)
+- `description`: optional
+- `author`: optional
+- `tags`: set of strings (default empty)
+- `model`: optional model hint
+- `changelog`: list of strings (default empty)
 
 ## Using `LocalTemplateStore`
 
@@ -232,7 +234,6 @@ config: StoreConfig = {
     "base_path": Path("prompts"),
     "initial_version": None,       # defaults to 1.0.0
     "template_file_name": None,    # defaults to "template.md"
-    "metadata_file_name": None,    # defaults to "metadata.yml"
 }
 
 store = LocalTemplateStore(config=config)
@@ -367,7 +368,6 @@ store = LocalTemplateStore(config={
     "base_path": Path("prompts"),
     "initial_version": None,
     "template_file_name": None,
-    "metadata_file_name": None,
 })
 
 manager = PromptDepotManager(
@@ -481,13 +481,12 @@ For `LocalTemplateStore`, the recognized config keys are:
 | `base_path` | Path to the root directory containing templates | (required) |
 | `initial_version` | Version string for `create_template` | `1.0.0` |
 | `template_file_name` | Name of the template file in each version directory | `template.md` |
-| `metadata_file_name` | Name of the metadata file in each version directory | `metadata.yml` |
 
 ## Error Handling
 
 `LocalTemplateStore` may raise:
 
-- `TemplateNotFoundError` -- template id, version, metadata file, or template file not found
+- `TemplateNotFoundError` -- template id, version, or template file not found; or frontmatter missing/invalid
 - `VersionAlreadyExistsError` -- creating a version that already exists
 - `ValidationError` -- Pydantic validation failure on metadata
 
