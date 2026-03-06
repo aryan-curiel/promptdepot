@@ -31,8 +31,28 @@ class VersionAlreadyExistsError(FileExistsError):
 class StoreConfig(TypedDict):
     base_path: Path | str
     initial_version: SemanticVersion | None
-    template_file_name: str | None
-    metadata_file_name: str | None
+
+
+def _parse_frontmatter(content: str) -> tuple[dict, str]:
+    """Parse YAML frontmatter from content. Returns (frontmatter_dict, body)."""
+    if not content.startswith("---\n"):
+        return {}, content
+    rest = content[4:]
+    # Look for a closing delimiter on its own line: "\n---\n"
+    end_idx = rest.find("\n---\n")
+    if end_idx != -1:
+        yaml_block = rest[:end_idx]
+        body = rest[end_idx + 5 :]
+    elif rest.endswith("\n---"):
+        # Frontmatter with no body: closing delimiter at end of content
+        yaml_block = rest[:-4]
+        body = ""
+    else:
+        # No valid closing delimiter; treat as if there is no frontmatter
+        return {}, content
+    if body.startswith("\n"):
+        body = body[1:]
+    return safe_load(yaml_block) or {}, body
 
 
 class LocalTemplateStore(TemplateStore):
@@ -44,27 +64,22 @@ class LocalTemplateStore(TemplateStore):
             else config["base_path"]
         )
         self.initial_version = config.get("initial_version") or SemanticVersion(major=1)
-        self.template_file_name: str = config.get("template_file_name") or "template.md"
-        self.metadata_file_name: str = (
-            config.get("metadata_file_name") or "metadata.yml"
-        )
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def _read_prompt_metadata(self, metadata_path: Path) -> TemplateVersionMetadata:
-        if not metadata_path.exists():
-            raise TemplateNotFoundError(f"Metadata file not found at '{metadata_path}'")
+    def _read_prompt_metadata(self, template_path: Path) -> TemplateVersionMetadata:
+        if not template_path.exists():
+            raise TemplateNotFoundError(f"Template file not found at '{template_path}'")
 
-        metadata_content = metadata_path.read_text()
-        metadata_dict = safe_load(metadata_content)
-        return TemplateVersionMetadata.model_validate(metadata_dict)
+        content = template_path.read_text()
+        frontmatter, _ = _parse_frontmatter(content)
+        if not frontmatter:
+            raise TemplateNotFoundError(
+                f"No frontmatter found in template file '{template_path}'"
+            )
+        return TemplateVersionMetadata.model_validate(frontmatter)
 
     def _get_template_path(self, template_id: str, version: PromptVersion) -> Path:
-        version_str = str(version)
-        return self.base_path / template_id / version_str / self.template_file_name
-
-    def _get_metadata_path(self, template_id: str, version: PromptVersion) -> Path:
-        version_str = str(version)
-        return self.base_path / template_id / version_str / self.metadata_file_name
+        return self.base_path / template_id / f"{version}.md"
 
     def get_template(self, template_id: str) -> Template:
         try:
@@ -81,13 +96,8 @@ class LocalTemplateStore(TemplateStore):
         version = (
             SemanticVersion.parse(version) if isinstance(version, str) else version
         )
-        metadata_path = self._get_metadata_path(template_id, version)
-        metadata = self._read_prompt_metadata(metadata_path)
         template_path = self._get_template_path(template_id, version)
-        if not template_path.exists():
-            raise TemplateNotFoundError(
-                f"Template file not found at '{template_path}' for template '{template_id}' version '{version}'"
-            )
+        metadata = self._read_prompt_metadata(template_path)
         return TemplateVersion(
             template_id=template_id,
             version=version,
@@ -123,10 +133,10 @@ class LocalTemplateStore(TemplateStore):
             raise TemplateNotFoundError(f"Template '{template_id}' not found")
 
         versions: list[TemplateVersion] = []
-        for version_dir in sorted(template_dir.iterdir(), key=lambda path: path.name):
-            if not version_dir.is_dir():
+        for version_file in sorted(template_dir.iterdir(), key=lambda path: path.name):
+            if not version_file.is_file() or version_file.suffix != ".md":
                 continue
-            version = version_dir.name
+            version = version_file.stem
             try:
                 template_version = self.get_template_version(template_id, version)
                 versions.append(template_version)
@@ -172,21 +182,21 @@ class LocalTemplateStore(TemplateStore):
         elif strategy == CreationStrategy.FROM_PREVIOUS_VERSION:
             try:
                 latest_template = self.get_latest_version(template_id)
-                template_path = self._get_template_path(
+                template_content = self.get_template_version_content(
                     template_id, latest_template.version
                 )
-                template_content = template_path.read_text()
             except TemplateNotFoundError:
                 self.logger.warning(
                     f"No existing versions found for template '{template_id}'. Creating new version with empty content."
                 )
                 template_content = ""
-        version_path = self.base_path / template_id / str(version)
-        if version_path.exists():
+
+        template_file = self._get_template_path(template_id, version)
+        if template_file.exists():
             raise VersionAlreadyExistsError(
                 f"Version '{version}' for template '{template_id}' already exists"
             )
-        version_path.mkdir(parents=True, exist_ok=False)
+        template_file.parent.mkdir(parents=True, exist_ok=True)
 
         metadata = metadata or TemplateVersionMetadata(
             template_id=template_id,
@@ -194,10 +204,9 @@ class LocalTemplateStore(TemplateStore):
             if isinstance(version, str)
             else version,
         )  # ty:ignore[missing-argument]
-        metadata_content = safe_dump(metadata.model_dump(mode="json"))
-        self._get_metadata_path(template_id, version).write_text(metadata_content)
-
-        self._get_template_path(template_id, version).write_text(template_content)
+        yaml_block = safe_dump(metadata.model_dump(mode="json"))
+        file_content = f"---\n{yaml_block}---\n{template_content}"
+        template_file.write_text(file_content)
 
     def create_template(
         self,
@@ -214,9 +223,11 @@ class LocalTemplateStore(TemplateStore):
     ) -> str:
         template_path = self._get_template_path(template_id, version)
         try:
-            return template_path.read_text()
+            content = template_path.read_text()
         except FileNotFoundError as e:
             raise TemplateNotFoundError(
                 f"Template file not found for template '{template_id}', "
                 f"version '{version}', at path '{template_path}'"
             ) from e
+        _, body = _parse_frontmatter(content)
+        return body
