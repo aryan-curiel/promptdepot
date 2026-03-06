@@ -378,6 +378,10 @@ def test_local_template_store_list_template_versions__should_skip_non_md_files(
 def test_local_template_store_list_template_versions__should_skip_subdirectories(
     local_store: LocalTemplateStore,
 ):
+    # Ensure there is a subdirectory present so that the subdirectory-skipping
+    # logic in list_template_versions is actually exercised.
+    unexpected_folder = local_store.base_path / "testing_prompt_unexpected_folder"
+    (unexpected_folder / "some_dir").mkdir(parents=True, exist_ok=True)
     versions = local_store.list_template_versions("testing_prompt_unexpected_folder")
     version_strings = {str(v.version) for v in versions}
     assert "1.0.0" in version_strings
