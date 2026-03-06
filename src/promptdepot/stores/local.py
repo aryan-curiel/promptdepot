@@ -43,7 +43,7 @@ def _parse_frontmatter(content: str) -> tuple[dict, str]:
     if end_idx == -1:
         return {}, content
     yaml_block = rest[:end_idx]
-    body = rest[end_idx + 4:]
+    body = rest[end_idx + 4 :]
     if body.startswith("\n"):
         body = body[1:]
     return safe_load(yaml_block) or {}, body
