@@ -23,7 +23,6 @@ def _make_config(base_path: Path | str) -> StoreConfig:
     return StoreConfig(
         base_path=base_path,
         initial_version=None,
-        template_file_name=None,
     )
 
 
@@ -52,7 +51,7 @@ def test_local_template_store_init__should_set_class_properly_when_path_is_path(
 def test_local_template_store_read_prompt_metadata__should_raise_when_file_does_not_exist(
     local_store: LocalTemplateStore,
 ):
-    non_existent_file = local_store.base_path / "non_existent" / "template.md"
+    non_existent_file = local_store.base_path / "non_existent" / "1.0.0.md"
     with pytest.raises(TemplateNotFoundError):
         local_store._read_prompt_metadata(non_existent_file)
 
@@ -75,7 +74,7 @@ def test_local_template_store_read_prompt_metadata__should_read_and_parse_metada
     local_store: LocalTemplateStore,
 ):
     metadata: TemplateVersionMetadata = local_store._read_prompt_metadata(
-        local_store.base_path / "testing_prompt" / "1.0.0" / "template.md"
+        local_store.base_path / "testing_prompt" / "1.0.0.md"
     )
     expected_metadata = {
         "template_id": "testing_prompt",
@@ -347,9 +346,9 @@ def test_local_template_store_list_template_versions__should_skip_version_and_lo
     template_dir = temp_local_store.base_path / "testing_prompt"
     template_dir.mkdir()
 
-    (template_dir / "1.0.0").mkdir()
-    (template_dir / "1.1.0").mkdir()
-    (template_dir / "1.2.0").mkdir()
+    (template_dir / "1.0.0.md").write_text("")
+    (template_dir / "1.1.0.md").write_text("")
+    (template_dir / "1.2.0.md").write_text("")
 
     def _fake_get_template_version(template_id: str, version: str) -> TemplateVersion:
         if version == "1.1.0":
@@ -368,18 +367,18 @@ def test_local_template_store_list_template_versions__should_skip_version_and_lo
     assert "Error reading template 'testing_prompt' version '1.1.0':" in caplog.text
 
 
-def test_local_template_store_list_template_versions__should_skip_unexpected_folders(
+def test_local_template_store_list_template_versions__should_skip_non_md_files(
     local_store: LocalTemplateStore,
 ):
-    versions = local_store.list_template_versions("testing_prompt_unexpected_folder")
+    versions = local_store.list_template_versions("testing_prompt_unexpected_file")
     version_strings = {str(v.version) for v in versions}
     assert "1.0.0" in version_strings
 
 
-def test_local_template_store_list_template_versions__should_skip_unexpected_files(
+def test_local_template_store_list_template_versions__should_skip_subdirectories(
     local_store: LocalTemplateStore,
 ):
-    versions = local_store.list_template_versions("testing_prompt_unexpected_file")
+    versions = local_store.list_template_versions("testing_prompt_unexpected_folder")
     version_strings = {str(v.version) for v in versions}
     assert "1.0.0" in version_strings
 
@@ -442,22 +441,19 @@ def test_local_template_store_create_version__should_create_file_with_frontmatte
         strategy=CreationStrategy.EMPTY,
     )
 
-    version_path = temp_local_store.base_path / "testing_prompt" / "1.0.0"
-    template_path = version_path / "template.md"
+    template_file = temp_local_store.base_path / "testing_prompt" / "1.0.0.md"
 
-    assert version_path.exists()
-    assert template_path.exists()
-    assert template_path.read_text().startswith("---\n")
-    assert (
-        temp_local_store.get_template_version_content("testing_prompt", "1.0.0") == ""
-    )
+    assert template_file.exists()
+    assert template_file.read_text().startswith("---\n")
+    assert temp_local_store.get_template_version_content("testing_prompt", "1.0.0") == ""
 
 
 def test_local_template_store_create_version__should_raise_when_version_already_exists(
     temp_local_store: LocalTemplateStore,
 ):
-    version_path = temp_local_store.base_path / "testing_prompt" / "1.0.0"
-    version_path.mkdir(parents=True, exist_ok=False)
+    version_file = temp_local_store.base_path / "testing_prompt" / "1.0.0.md"
+    version_file.parent.mkdir(parents=True, exist_ok=True)
+    version_file.write_text("")
 
     with pytest.raises(VersionAlreadyExistsError):
         temp_local_store.create_version(
@@ -548,11 +544,9 @@ def test_local_template_store_create_version__should_dump_metadata_using_model_d
         strategy=CreationStrategy.EMPTY,
     )
 
-    template_path = (
-        temp_local_store.base_path / "testing_prompt" / "1.0.0" / "template.md"
-    )
+    template_file = temp_local_store.base_path / "testing_prompt" / "1.0.0.md"
     assert captured["data"] == metadata.model_dump(mode="json")
-    assert template_path.read_text() == "---\nserialized-metadata\n---\n"
+    assert template_file.read_text() == "---\nserialized-metadata\n---\n"
 
 
 def test_local_template_store_create_template__should_create_file_with_frontmatter(
@@ -562,15 +556,11 @@ def test_local_template_store_create_template__should_create_file_with_frontmatt
         template_id="testing_prompt",
     )
 
-    version_path = temp_local_store.base_path / "testing_prompt" / "1.0.0"
-    template_path = version_path / "template.md"
+    template_file = temp_local_store.base_path / "testing_prompt" / "1.0.0.md"
 
-    assert version_path.exists()
-    assert template_path.exists()
-    assert template_path.read_text().startswith("---\n")
-    assert (
-        temp_local_store.get_template_version_content("testing_prompt", "1.0.0") == ""
-    )
+    assert template_file.exists()
+    assert template_file.read_text().startswith("---\n")
+    assert temp_local_store.get_template_version_content("testing_prompt", "1.0.0") == ""
 
 
 def test_local_template_store_create_version__should_create_with_content_when_strategy_with_content(
@@ -647,8 +637,7 @@ def test_local_template_store_get_template_version_content__should_return_conten
 def test_local_template_store_get_template_version_content__should_raise_when_template_file_missing(
     temp_local_store: LocalTemplateStore,
 ):
-    version_dir = temp_local_store.base_path / "testing_prompt" / "1.0.0"
-    version_dir.mkdir(parents=True)
+    (temp_local_store.base_path / "testing_prompt").mkdir(parents=True)
 
     with pytest.raises(TemplateNotFoundError, match="Template file not found"):
         temp_local_store.get_template_version_content("testing_prompt", "1.0.0")
@@ -658,20 +647,18 @@ def test_local_template_store_get_template_path__should_return_correct_path(
     local_store: LocalTemplateStore,
 ):
     path = local_store._get_template_path("testing_prompt", "1.0.0")
-    expected = local_store.base_path / "testing_prompt" / "1.0.0" / "template.md"
+    expected = local_store.base_path / "testing_prompt" / "1.0.0.md"
     assert path == expected
 
 
-def test_local_template_store_list_template_versions__should_skip_version_dir_without_template(
+def test_local_template_store_list_template_versions__should_skip_md_file_without_frontmatter(
     temp_local_store: LocalTemplateStore,
 ):
-    """A version directory with no template.md should be silently skipped."""
+    """An .md file with no valid frontmatter is silently skipped."""
     template_dir = temp_local_store.base_path / "testing_prompt"
     template_dir.mkdir(parents=True, exist_ok=True)
 
-    valid_version_dir = template_dir / "1.0.0"
-    valid_version_dir.mkdir()
-    (valid_version_dir / "template.md").write_text(
+    (template_dir / "1.0.0.md").write_text(
         "---\n"
         "template_id: testing_prompt\n"
         "version: 1.0.0\n"
@@ -681,10 +668,8 @@ def test_local_template_store_list_template_versions__should_skip_version_dir_wi
         "---\n"
         "Hello"
     )
-
-    invalid_version_dir = template_dir / "2.0.0"
-    invalid_version_dir.mkdir()
-    # No template.md → TemplateNotFoundError → silently skipped
+    # No frontmatter → silently skipped
+    (template_dir / "2.0.0.md").write_text("no frontmatter here")
 
     versions = temp_local_store.list_template_versions("testing_prompt")
     assert len(versions) == 1

@@ -184,16 +184,15 @@ Behavior:
 
 ## Prompt Metadata Schema
 
-Each version is a single `template.md` file. Metadata is declared in a YAML frontmatter block at the top of the file (the `---` intro section), followed by the template body:
+Each version is a single file named after its version. Metadata is declared in a YAML frontmatter block at the top of the file (the `---` intro section), followed by the template body:
 
 ```text
 <base_path>/
   <template_id>/
-    <version>/
-      template.md
+    <version>.md
 ```
 
-`template.md` format:
+`<version>.md` format:
 
 ```markdown
 ---
@@ -232,8 +231,7 @@ from promptdepot.stores.local import LocalTemplateStore, StoreConfig
 
 config: StoreConfig = {
     "base_path": Path("prompts"),
-    "initial_version": None,       # defaults to 1.0.0
-    "template_file_name": None,    # defaults to "template.md"
+    "initial_version": None,   # defaults to 1.0.0
 }
 
 store = LocalTemplateStore(config=config)
@@ -367,7 +365,6 @@ from promptdepot.stores.local import LocalTemplateStore
 store = LocalTemplateStore(config={
     "base_path": Path("prompts"),
     "initial_version": None,
-    "template_file_name": None,
 })
 
 manager = PromptDepotManager(
@@ -480,7 +477,6 @@ For `LocalTemplateStore`, the recognized config keys are:
 |---|---|---|
 | `base_path` | Path to the root directory containing templates | (required) |
 | `initial_version` | Version string for `create_template` | `1.0.0` |
-| `template_file_name` | Name of the template file in each version directory | `template.md` |
 
 ## Error Handling
 

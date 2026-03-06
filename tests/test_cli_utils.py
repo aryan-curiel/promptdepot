@@ -36,7 +36,6 @@ def test_get_store__should_pass_config_to_store(
         store=StoreSettings(
             config={
                 "base_path": str(tmp_path),
-                "template_file_name": "prompt.txt",
             }
         ),
         _env_file=None,  # type: ignore[call-arg]
@@ -46,7 +45,7 @@ def test_get_store__should_pass_config_to_store(
     store = get_store()
 
     assert isinstance(store, LocalTemplateStore)
-    assert store.template_file_name == "prompt.txt"
+    assert store.base_path == tmp_path
 
 
 def test_get_store__should_raise_when_store_path_module_not_found(
