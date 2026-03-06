@@ -45,7 +45,7 @@ def _parse_frontmatter(content: str) -> tuple[dict, str]:
         body = rest[end_idx + 5 :]
     elif rest.endswith("\n---"):
         # Frontmatter with no body: closing delimiter at end of content
-        yaml_block = rest[: -4]
+        yaml_block = rest[:-4]
         body = ""
     else:
         # No valid closing delimiter; treat as if there is no frontmatter
