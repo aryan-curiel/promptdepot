@@ -24,7 +24,6 @@ def _make_config(base_path: Path | str) -> StoreConfig:
         base_path=base_path,
         initial_version=None,
         template_file_name=None,
-        metadata_file_name=None,
     )
 
 
@@ -53,7 +52,7 @@ def test_local_template_store_init__should_set_class_properly_when_path_is_path(
 def test_local_template_store_read_prompt_metadata__should_raise_when_file_does_not_exist(
     local_store: LocalTemplateStore,
 ):
-    non_existent_file = local_store.base_path / "non_existent_metadata.yml"
+    non_existent_file = local_store.base_path / "non_existent" / "template.md"
     with pytest.raises(TemplateNotFoundError):
         local_store._read_prompt_metadata(non_existent_file)
 
@@ -76,7 +75,7 @@ def test_local_template_store_read_prompt_metadata__should_read_and_parse_metada
     local_store: LocalTemplateStore,
 ):
     metadata: TemplateVersionMetadata = local_store._read_prompt_metadata(
-        local_store.base_path / "testing_prompt" / "1.0.0" / "metadata.yml"
+        local_store.base_path / "testing_prompt" / "1.0.0" / "template.md"
     )
     expected_metadata = {
         "template_id": "testing_prompt",
@@ -434,7 +433,7 @@ def test_local_template_store_get_latest_version__should_return_latest_version(
     assert str(latest.version) == "1.1.0"
 
 
-def test_local_template_store_create_version__should_create_files_with_empty_content_when_strategy_empty(
+def test_local_template_store_create_version__should_create_file_with_frontmatter_when_strategy_empty(
     temp_local_store: LocalTemplateStore,
 ):
     temp_local_store.create_version(
@@ -444,13 +443,12 @@ def test_local_template_store_create_version__should_create_files_with_empty_con
     )
 
     version_path = temp_local_store.base_path / "testing_prompt" / "1.0.0"
-    metadata_path = version_path / "metadata.yml"
     template_path = version_path / "template.md"
 
     assert version_path.exists()
-    assert metadata_path.exists()
     assert template_path.exists()
-    assert template_path.read_text() == ""
+    assert template_path.read_text().startswith("---\n")
+    assert temp_local_store.get_template_version_content("testing_prompt", "1.0.0") == ""
 
 
 def test_local_template_store_create_version__should_raise_when_version_already_exists(
@@ -490,10 +488,10 @@ def test_local_template_store_create_version__should_copy_latest_template_conten
         strategy=CreationStrategy.FROM_PREVIOUS_VERSION,
     )
 
-    created_template_path = (
-        temp_local_store.base_path / "testing_prompt" / "1.0.0" / "template.md"
+    assert (
+        temp_local_store.get_template_version_content("testing_prompt", "1.0.0")
+        == "previous content"
     )
-    assert created_template_path.read_text() == "previous content"
 
 
 def test_local_template_store_create_version__should_fallback_to_empty_content_when_no_previous_version(
@@ -513,10 +511,9 @@ def test_local_template_store_create_version__should_fallback_to_empty_content_w
             strategy=CreationStrategy.FROM_PREVIOUS_VERSION,
         )
 
-    created_template_path = (
-        temp_local_store.base_path / "testing_prompt" / "1.0.0" / "template.md"
+    assert (
+        temp_local_store.get_template_version_content("testing_prompt", "1.0.0") == ""
     )
-    assert created_template_path.read_text() == ""
     assert "No existing versions found for template 'testing_prompt'" in caplog.text
 
 
@@ -528,7 +525,7 @@ def test_local_template_store_create_version__should_dump_metadata_using_model_d
 
     def _fake_safe_dump(data):
         captured["data"] = data
-        return "serialized-metadata"
+        return "serialized-metadata\n"
 
     monkeypatch.setattr(local_store_module, "safe_dump", _fake_safe_dump)
 
@@ -549,14 +546,14 @@ def test_local_template_store_create_version__should_dump_metadata_using_model_d
         strategy=CreationStrategy.EMPTY,
     )
 
-    metadata_path = (
-        temp_local_store.base_path / "testing_prompt" / "1.0.0" / "metadata.yml"
+    template_path = (
+        temp_local_store.base_path / "testing_prompt" / "1.0.0" / "template.md"
     )
     assert captured["data"] == metadata.model_dump(mode="json")
-    assert metadata_path.read_text() == "serialized-metadata"
+    assert template_path.read_text() == "---\nserialized-metadata\n---\n"
 
 
-def test_local_template_store_create_template__should_create_files(
+def test_local_template_store_create_template__should_create_file_with_frontmatter(
     temp_local_store: LocalTemplateStore,
 ):
     temp_local_store.create_template(
@@ -564,13 +561,12 @@ def test_local_template_store_create_template__should_create_files(
     )
 
     version_path = temp_local_store.base_path / "testing_prompt" / "1.0.0"
-    metadata_path = version_path / "metadata.yml"
     template_path = version_path / "template.md"
 
     assert version_path.exists()
-    assert metadata_path.exists()
     assert template_path.exists()
-    assert template_path.read_text() == ""
+    assert template_path.read_text().startswith("---\n")
+    assert temp_local_store.get_template_version_content("testing_prompt", "1.0.0") == ""
 
 
 def test_local_template_store_create_version__should_create_with_content_when_strategy_with_content(
@@ -583,10 +579,10 @@ def test_local_template_store_create_version__should_create_with_content_when_st
         content="Hello, world!",
     )
 
-    template_path = (
-        temp_local_store.base_path / "testing_prompt" / "1.0.0" / "template.md"
+    assert (
+        temp_local_store.get_template_version_content("testing_prompt", "1.0.0")
+        == "Hello, world!"
     )
-    assert template_path.read_text() == "Hello, world!"
 
 
 def test_local_template_store_create_version__should_warn_when_content_provided_but_strategy_not_with_content(
@@ -605,10 +601,9 @@ def test_local_template_store_create_version__should_warn_when_content_provided_
         "Content provided will be ignored because of the creation strategy."
         in caplog.text
     )
-    template_path = (
-        temp_local_store.base_path / "testing_prompt" / "1.0.0" / "template.md"
+    assert (
+        temp_local_store.get_template_version_content("testing_prompt", "1.0.0") == ""
     )
-    assert template_path.read_text() == ""
 
 
 def test_local_template_store_create_version__should_warn_when_with_content_strategy_but_no_content(
@@ -626,10 +621,9 @@ def test_local_template_store_create_version__should_warn_when_with_content_stra
         "Creation strategy 'WITH_CONTENT' specified but no content provided."
         in caplog.text
     )
-    template_path = (
-        temp_local_store.base_path / "testing_prompt" / "1.0.0" / "template.md"
+    assert (
+        temp_local_store.get_template_version_content("testing_prompt", "1.0.0") == ""
     )
-    assert template_path.read_text() == ""
 
 
 def test_local_template_store_get_template_version_content__should_return_content(
@@ -649,10 +643,8 @@ def test_local_template_store_get_template_version_content__should_return_conten
 def test_local_template_store_get_template_version_content__should_raise_when_template_file_missing(
     temp_local_store: LocalTemplateStore,
 ):
-    """get_template_version_content raises TemplateNotFoundError when the template file does not exist."""
     version_dir = temp_local_store.base_path / "testing_prompt" / "1.0.0"
     version_dir.mkdir(parents=True)
-    # No template.md file created
 
     with pytest.raises(TemplateNotFoundError, match="Template file not found"):
         temp_local_store.get_template_version_content("testing_prompt", "1.0.0")
@@ -666,36 +658,29 @@ def test_local_template_store_get_template_path__should_return_correct_path(
     assert path == expected
 
 
-def test_local_template_store_get_metadata_path__should_return_correct_path(
-    local_store: LocalTemplateStore,
-):
-    path = local_store._get_metadata_path("testing_prompt", "1.0.0")
-    expected = local_store.base_path / "testing_prompt" / "1.0.0" / "metadata.yml"
-    assert path == expected
-
-
-def test_local_template_store_list_template_versions__should_skip_version_dir_without_metadata(
+def test_local_template_store_list_template_versions__should_skip_version_dir_without_template(
     temp_local_store: LocalTemplateStore,
 ):
-    """A version directory that exists but has no metadata.yml should be silently skipped."""
+    """A version directory with no template.md should be silently skipped."""
     template_dir = temp_local_store.base_path / "testing_prompt"
     template_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create a valid version directory
     valid_version_dir = template_dir / "1.0.0"
     valid_version_dir.mkdir()
-    (valid_version_dir / "metadata.yml").write_text(
+    (valid_version_dir / "template.md").write_text(
+        "---\n"
         "template_id: testing_prompt\n"
         "version: 1.0.0\n"
         "created_at: '2025-01-01T00:00:00'\n"
         "description: valid\n"
         "changelog:\n  - init\n"
+        "---\n"
+        "Hello"
     )
-    (valid_version_dir / "template.md").write_text("Hello")
 
-    # Create an invalid version directory (no metadata.yml)
     invalid_version_dir = template_dir / "2.0.0"
     invalid_version_dir.mkdir()
+    # No template.md → TemplateNotFoundError → silently skipped
 
     versions = temp_local_store.list_template_versions("testing_prompt")
     assert len(versions) == 1

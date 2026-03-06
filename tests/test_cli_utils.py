@@ -37,7 +37,6 @@ def test_get_store__should_pass_config_to_store(
             config={
                 "base_path": str(tmp_path),
                 "template_file_name": "prompt.txt",
-                "metadata_file_name": "meta.yaml",
             }
         ),
         _env_file=None,  # type: ignore[call-arg]
@@ -48,7 +47,6 @@ def test_get_store__should_pass_config_to_store(
 
     assert isinstance(store, LocalTemplateStore)
     assert store.template_file_name == "prompt.txt"
-    assert store.metadata_file_name == "meta.yaml"
 
 
 def test_get_store__should_raise_when_store_path_module_not_found(

@@ -1,0 +1,15 @@
+---
+template_id: testing_prompt
+version: 1.1.0
+created_at: 2024-02-15T10:30:00
+description: A test prompt for validation purposes
+author: Aryan Curiel
+tags:
+  - test
+  - example
+  - validation
+model: gpt-4
+changelog:
+  - Initial release
+  - Added validation tests
+---
